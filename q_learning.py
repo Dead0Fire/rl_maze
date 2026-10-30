@@ -81,23 +81,19 @@ class QLearningAgent:
             next_state: Next state
             next_valid_actions: List of valid actions from next state
         """
-        # TODO: Get current Q-value for (state, action)
+        # Current estimate of Q(s,a)
         current_q = self.q_table[state][action]
 
-        # TODO: Compute maximum Q-value for next state
-        # Hint: Only consider valid actions from next_state
+        # Best value reachable from s' (off-policy: ignores what is actually done next).
+        # train.py also passes actions for terminal states, but terminal states are
+        # never updated, so their Q-values stay 0 and the target reduces to r.
         if next_valid_actions:
-            # YOUR CODE HERE
-            # Get Q-values for all valid actions in next state
-            # Find the maximum Q-value
-            max_next_q = 0  # Replace this with your code
+            max_next_q = max(self.q_table[next_state][a] for a in next_valid_actions)
         else:
             max_next_q = 0
 
-        # TODO: Compute the Q-learning update
         # Q(s,a) = Q(s,a) + α * [r + γ * max_a' Q(s',a') - Q(s,a)]
-        # YOUR CODE HERE
-        new_q = current_q  # Replace this with your code
+        new_q = current_q + self.lr * (reward + self.gamma * max_next_q - current_q)
 
         # Update Q-table
         self.q_table[state][action] = new_q

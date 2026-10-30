@@ -84,19 +84,15 @@ class SARSAAgent:
             next_state: Next state
             next_action: Action to be taken in next state
         """
-        # TODO: Get current Q-value for (state, action)
+        # Current estimate of Q(s,a)
         current_q = self.q_table[state][action]
 
-        # TODO: Get Q-value for (next_state, next_action)
-        # This is the key difference from Q-learning:
-        # SARSA uses Q(s',a') instead of max_a' Q(s',a')
-        # YOUR CODE HERE
-        next_q = 0  # Replace this with your code
+        # Value of the action actually chosen next (on-policy), the key difference
+        # from Q-learning. next_action is None at terminal states, whose value is 0.
+        next_q = 0 if next_action is None else self.q_table[next_state][next_action]
 
-        # TODO: Compute the SARSA update
         # Q(s,a) = Q(s,a) + α * [r + γ * Q(s',a') - Q(s,a)]
-        # YOUR CODE HERE
-        new_q = current_q  # Replace this with your code
+        new_q = current_q + self.lr * (reward + self.gamma * next_q - current_q)
 
         # Update Q-table
         self.q_table[state][action] = new_q

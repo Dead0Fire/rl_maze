@@ -1,9 +1,9 @@
 """
-Extra experiments for the report: python experiments.py
-Writes figures to figures/ and prints the tables used in REPORT.md.
+报告用的扩展实验，运行：python experiments.py
+图片输出到 figures/，并打印 REPORT.md 中用到的表格数据。
 
-Every result is averaged over SEEDS independent runs, and every run is seeded,
-so the numbers are reproducible. environment.py and train.py are not modified.
+所有结果都是 SEEDS 次独立运行的平均值，每次运行都固定随机种子，结果可复现。
+未改动 environment.py 和 train.py。
 """
 import random
 from collections import Counter
@@ -19,10 +19,10 @@ from q_learning import QLearningAgent
 from sarsa import SARSAAgent
 
 SEEDS = 30
-MAX_STEPS = 100  # same limit as train.py
+MAX_STEPS = 100  # 与 train.py 的步数上限相同
 FIG_DIR = Path(__file__).parent / 'figures'
 COLORS = {'Q-Learning': '#2a78d6', 'SARSA': '#eb6834', 'Expected SARSA': '#1baf7a'}
-ARROWS = {0: (0, 0.3), 1: (0.3, 0), 2: (0, -0.3), 3: (-0.3, 0)}  # up, right, down, left
+ARROWS = {0: (0, 0.3), 1: (0.3, 0), 2: (0, -0.3), 3: (-0.3, 0)}  # 上、右、下、左
 
 plt.rcParams.update({
     'font.size': 10, 'axes.spines.top': False, 'axes.spines.right': False,
@@ -34,11 +34,11 @@ plt.rcParams.update({
 
 
 class ExpectedSARSAAgent(QLearningAgent):
-    """Target is the expected Q(s',a') under the epsilon-greedy policy."""
+    """目标值使用 ε-贪心策略下 Q(s',a') 的期望。"""
 
     def learn(self, state, action, reward, next_state, next_valid_actions):
         q = self.q_table[next_state]
-        # Same tie-breaking as get_action: the first maximal valid action is greedy
+        # 平局处理与 get_action 相同：第一个最大值对应的动作视为贪心动作
         greedy = max(next_valid_actions, key=lambda a: q[a])
         expected = self.epsilon * np.mean([q[a] for a in next_valid_actions]) \
             + (1 - self.epsilon) * q[greedy]
@@ -50,12 +50,12 @@ class ExpectedSARSAAgent(QLearningAgent):
 
 
 class SoftmaxMixin:
-    """Boltzmann exploration: P(a) is proportional to exp(Q(s,a) / tau)."""
+    """Boltzmann 探索：P(a) 正比于 exp(Q(s,a) / tau)。"""
     tau = 5.0
 
     def get_action(self, state, valid_actions):
         q = self.q_table[state][valid_actions]
-        weights = np.exp((q - q.max()) / self.tau)  # subtract max to avoid overflow
+        weights = np.exp((q - q.max()) / self.tau)  # 先减去最大值，避免指数溢出
         return random.choices(valid_actions, weights=weights)[0]
 
 
@@ -68,7 +68,7 @@ class SoftmaxSARSA(SoftmaxMixin, SARSAAgent):
 
 
 def train_once(agent, seed, episodes):
-    """Same loop as train.py, returning per-episode (reward, steps, success)."""
+    """训练循环与 train.py 相同，返回每回合的 (奖励, 步数, 是否成功)。"""
     random.seed(seed)
     env = SimpleMaze()
     on_policy = isinstance(agent, SARSAAgent)
@@ -95,7 +95,7 @@ def train_once(agent, seed, episodes):
 
 
 def greedy_route(agent):
-    """Follow the greedy policy once (the environment is deterministic)."""
+    """按贪心策略走一次（环境是确定性的，走一次即可）。"""
     env = SimpleMaze()
     state, done, steps = env.reset(), False, 0
     visited = {state}
@@ -112,7 +112,7 @@ def greedy_route(agent):
 
 
 def run_many(make_agent, episodes):
-    """Train SEEDS agents. Returns logs with shape (seeds, episodes, 3) and the agents."""
+    """训练 SEEDS 个智能体，返回形状为 (seeds, episodes, 3) 的日志和智能体列表。"""
     agents = [make_agent() for _ in range(SEEDS)]
     logs = np.array([train_once(agent, seed, episodes) for seed, agent in enumerate(agents)])
     return logs, agents
@@ -131,7 +131,7 @@ def row(name, logs, agents):
 
 
 def smooth_band(values, window=20):
-    """Moving average per seed, then mean and 95% CI across seeds."""
+    """先对每个种子做滑动平均，再计算跨种子的均值和 95% 置信区间。"""
     kernel = np.ones(window) / window
     curves = np.array([np.convolve(v, kernel, mode='valid') for v in values])
     return curves.mean(0), 1.96 * curves.std(0) / np.sqrt(len(curves))
@@ -145,7 +145,7 @@ def plot_curve(ax, values, label, color, window=20):
 
 
 def default_params():
-    """Experiment 1: the default parameters from the assignment."""
+    """实验 1：作业给定的默认参数。"""
     print('\n== 1. Default parameters, 500 episodes ==')
     results = {
         'Q-Learning': run_many(QLearningAgent, 500),
@@ -171,7 +171,7 @@ def default_params():
 
 
 def epsilon_sweep():
-    """Experiment 2: constant exploration exposes the on-policy/off-policy difference."""
+    """实验 2：固定探索率，观察 on-policy 与 off-policy 的差异。"""
     print('\n== 2. Constant epsilon, 1000 episodes ==')
     algos = {'Q-Learning': QLearningAgent, 'SARSA': SARSAAgent, 'Expected SARSA': ExpectedSARSAAgent}
     epsilons = [0.05, 0.1, 0.2, 0.3, 0.4]
@@ -200,7 +200,7 @@ def epsilon_sweep():
 
 
 def plot_policies(results):
-    """Majority-vote greedy action per cell across seeds, at epsilon = 0.3."""
+    """ε=0.3 时，每个格子取各种子贪心动作的多数票。"""
     env = SimpleMaze()
     fig, axes = plt.subplots(1, len(results), figsize=(10, 3.6))
     for ax, (name, agents) in zip(axes, results.items()):
@@ -230,7 +230,7 @@ def plot_policies(results):
 
 
 def softmax_sweep():
-    """Experiment 3: Boltzmann exploration instead of epsilon-greedy."""
+    """实验 3：用 Boltzmann 探索代替 ε-贪心。"""
     print('\n== 3. Softmax exploration, constant tau, 1000 episodes ==')
     algos = {'Q-Learning': SoftmaxQLearning, 'SARSA': SoftmaxSARSA}
     taus = [1, 2, 5, 10, 20]

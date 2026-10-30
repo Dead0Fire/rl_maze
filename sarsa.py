@@ -5,40 +5,31 @@ from collections import defaultdict
 
 class SARSAAgent:
     """
-    SARSA agent implementation.
+    SARSA 智能体。
 
-    TODO: Implement the following methods:
-    1. learn() - implement the SARSA update rule
-    2. Optional: Modify the exploration strategy
-    3. Optional: Add any additional methods you think are useful
-
-    The SARSA update rule is:
+    更新规则：
     Q(s,a) = Q(s,a) + α * [r + γ * Q(s',a') - Q(s,a)]
 
-    Where:
-    - α (alpha) is the learning rate
-    - γ (gamma) is the discount factor
-    - r is the reward
-    - s is the current state
-    - a is the current action
-    - s' is the next state
-    - a' is the next action (chosen using the same policy as during action selection)
+    其中：
+    - α 是学习率，γ 是折扣因子，r 是奖励
+    - s、a 是当前状态和动作，s' 是下一状态
+    - a' 是下一动作（由同一策略选出）
 
-    Note: SARSA is an on-policy algorithm, meaning it learns the value of the policy
-    it's currently following, unlike Q-learning which learns the optimal policy.
+    SARSA 是 on-policy 算法：学习的是当前执行策略的价值，
+    而 Q-Learning 学习的是最优策略的价值。
     """
 
     def __init__(self, learning_rate=0.1, discount_factor=0.95,
                  epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01):
         """
-        Initialize SARSA agent.
+        初始化 SARSA 智能体。
 
-        Args:
-            learning_rate (float): Learning rate (α)
-            discount_factor (float): Discount factor (γ)
-            epsilon (float): Initial exploration rate
-            epsilon_decay (float): Epsilon decay rate
-            epsilon_min (float): Minimum exploration rate
+        参数:
+            learning_rate (float): 学习率 α
+            discount_factor (float): 折扣因子 γ
+            epsilon (float): 初始探索率
+            epsilon_decay (float): ε 的衰减系数
+            epsilon_min (float): 最小探索率
         """
         self.lr = learning_rate
         self.gamma = discount_factor
@@ -46,73 +37,72 @@ class SARSAAgent:
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
 
-        # Q-table: maps state-action pairs to Q-values
-        # defaultdict automatically creates a new array for unseen states
-        self.q_table = defaultdict(lambda: np.zeros(4))  # 4 actions: up, right, down, left
+        # Q 表：记录每个状态下各动作的 Q 值
+        # defaultdict 会为没见过的状态自动创建全零数组
+        self.q_table = defaultdict(lambda: np.zeros(4))  # 4 个动作：上、右、下、左
 
     def get_action(self, state, valid_actions):
         """
-        Choose action using epsilon-greedy policy.
+        按 ε-贪心策略选择动作。
 
-        Args:
-            state: Current state
-            valid_actions: List of valid actions from current state
+        参数:
+            state: 当前状态
+            valid_actions: 当前状态下的合法动作列表
 
-        Returns:
-            int: Selected action
+        返回:
+            int: 选中的动作
         """
         if random.uniform(0, 1) < self.epsilon:
-            # Explore: randomly select from valid actions
+            # 探索：在合法动作中随机选择
             return random.choice(valid_actions)
         else:
-            # Exploit: select best action from Q-table
+            # 利用：选择 Q 表中价值最高的动作
             q_values = self.q_table[state]
-            # Filter Q-values for valid actions
+            # 只考虑合法动作的 Q 值
             valid_q_values = {action: q_values[action] for action in valid_actions}
             return max(valid_q_values.keys(), key=lambda x: valid_q_values[x])
 
     def learn(self, state, action, reward, next_state, next_action):
         """
-        Update Q-table using SARSA update rule.
+        按 SARSA 规则更新 Q 表。
 
-        TODO: Implement this method!
-
-        Args:
-            state: Current state
-            action: Action taken
-            reward: Reward received
-            next_state: Next state
-            next_action: Action to be taken in next state
+        参数:
+            state: 当前状态
+            action: 执行的动作
+            reward: 获得的奖励
+            next_state: 下一状态
+            next_action: 下一状态将执行的动作（终止状态为 None）
         """
-        # Current estimate of Q(s,a)
+        # 当前的 Q(s,a) 估计值
         current_q = self.q_table[state][action]
 
-        # Value of the action actually chosen next (on-policy), the key difference
-        # from Q-learning. next_action is None at terminal states, whose value is 0.
+        # 取下一步实际选中动作的价值（on-policy），这是与 Q-Learning 的关键区别。
+        # 终止状态的 next_action 是 None，价值为 0；不能写 Q[s'][None]，
+        # numpy 不会报错，而是返回整个数组。
         next_q = 0 if next_action is None else self.q_table[next_state][next_action]
 
         # Q(s,a) = Q(s,a) + α * [r + γ * Q(s',a') - Q(s,a)]
         new_q = current_q + self.lr * (reward + self.gamma * next_q - current_q)
 
-        # Update Q-table
+        # 写回 Q 表
         self.q_table[state][action] = new_q
 
-        # Decay epsilon
+        # 衰减 ε（注意：每步衰减一次，而不是每回合）
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
     def set_epsilon(self, epsilon):
-        """Set exploration rate"""
+        """设置探索率"""
         self.epsilon = max(epsilon, self.epsilon_min)
 
     def save_q_table(self, filename):
-        """Save Q-table to file"""
+        """把 Q 表保存到文件"""
         import pickle
         with open(filename, 'wb') as f:
             pickle.dump(dict(self.q_table), f)
 
     def load_q_table(self, filename):
-        """Load Q-table from file"""
+        """从文件加载 Q 表"""
         import pickle
         with open(filename, 'rb') as f:
             q_dict = pickle.load(f)
